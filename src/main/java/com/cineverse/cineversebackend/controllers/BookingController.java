@@ -330,4 +330,50 @@ public class BookingController {
 
         return ResponseEntity.ok(booking);
     }
+
+    // --- GET USER NOTIFICATIONS ---
+    @GetMapping("/notifications")
+    public ResponseEntity<?> getMyNotifications(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "User must be authenticated"));
+        }
+        List<Notification> list = notificationRepository.findByUserIdOrderByTimestampDesc(user.getId());
+        return ResponseEntity.ok(list);
+    }
+
+    // --- MARK NOTIFICATION AS READ ---
+    @PostMapping("/notifications/{id}/read")
+    public ResponseEntity<?> markNotificationAsRead(@PathVariable("id") String id,
+                                                    @AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "User must be authenticated"));
+        }
+        Optional<Notification> opt = notificationRepository.findById(id);
+        if (opt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Notification n = opt.get();
+        if (!n.getUserId().equals(user.getId())) {
+            return ResponseEntity.status(403).body(Map.of("message", "Forbidden"));
+        }
+        n.setRead(true);
+        notificationRepository.save(n);
+        return ResponseEntity.ok(n);
+    }
+
+    // --- MARK ALL NOTIFICATIONS AS READ ---
+    @PostMapping("/notifications/read-all")
+    public ResponseEntity<?> markAllNotificationsAsRead(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "User must be authenticated"));
+        }
+        List<Notification> list = notificationRepository.findByUserIdOrderByTimestampDesc(user.getId());
+        for (Notification n : list) {
+            if (!n.isRead()) {
+                n.setRead(true);
+                notificationRepository.save(n);
+            }
+        }
+        return ResponseEntity.ok(Map.of("message", "All notifications marked as read"));
+    }
 }

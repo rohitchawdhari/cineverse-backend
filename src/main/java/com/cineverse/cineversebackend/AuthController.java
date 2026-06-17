@@ -11,6 +11,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -180,12 +182,18 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
         }
         
-        User user = (User) auth.getPrincipal();
+        User principal = (User) auth.getPrincipal();
+        Optional<User> userOpt = userRepository.findById(principal.getId());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("message", "User not found"));
+        }
+        User user = userOpt.get();
         return ResponseEntity.ok(Map.of(
                 "id", user.getId(),
                 "name", user.getName(),
                 "email", user.getEmail(),
-                "role", user.getRole()
+                "role", user.getRole(),
+                "wishlist", user.getWishlist() != null ? user.getWishlist() : new ArrayList<>()
         ));
     }
 
