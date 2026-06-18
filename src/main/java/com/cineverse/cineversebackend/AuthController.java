@@ -47,40 +47,31 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "Email is already registered"));
         }
 
-        // Generate verification token
-        String verificationToken = UUID.randomUUID().toString();
-
-        // Create user
+        // Create user (auto-verified by default, no email verification needed)
         User user = User.builder()
                 .name(name)
                 .email(email)
                 .password(passwordEncoder.encode(password))
                 .role("USER") // Default role
-                .isVerified(false)
-                .verificationToken(verificationToken)
+                .isVerified(true)
+                .verificationToken(null)
                 .build();
 
         // Special case: if this is the first registered user, make them ADMIN
         if (userRepository.count() == 0) {
             user.setRole("ADMIN");
-            user.setVerified(true); // Auto-verify the first admin
-            user.setVerificationToken(null);
         }
 
         userRepository.save(user);
 
-        // Send email
-        if (!user.isVerified()) {
-            emailService.sendVerificationEmail(email, verificationToken);
-        }
-
-        return ResponseEntity.ok(Map.of("message", "Registration successful. Please check your email to verify your account."));
+        return ResponseEntity.ok(Map.of("message", "Registration successful. You can now login."));
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
         String email = request.get("email");
         String password = request.get("password");
+        String requestedRole = request.get("role"); // ADMIN or USER
 
         if (email == null || password == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Email and password are required"));
@@ -100,8 +91,14 @@ public class AuthController {
             return ResponseEntity.status(403).body(Map.of("message", "Your account has been suspended by the administrator"));
         }
 
-        if (!user.isVerified()) {
-            return ResponseEntity.status(403).body(Map.of("message", "Please verify your email address first"));
+        // Role-based access validation for separate portal logins
+        if (requestedRole != null) {
+            if (requestedRole.equalsIgnoreCase("ADMIN") && !user.getRole().equalsIgnoreCase("ADMIN")) {
+                return ResponseEntity.status(403).body(Map.of("message", "Access Denied: Non-admin accounts cannot log in through the Admin Portal"));
+            }
+            if (requestedRole.equalsIgnoreCase("USER") && !user.getRole().equalsIgnoreCase("USER")) {
+                return ResponseEntity.status(403).body(Map.of("message", "Access Denied: Administrators must log in through the Admin Portal"));
+            }
         }
 
         String token = jwtService.generateToken(user.getEmail(), user.getRole());
