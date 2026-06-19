@@ -5,6 +5,7 @@ import com.cineverse.cineversebackend.repositories.UserRepository;
 import com.cineverse.cineversebackend.security.JwtService;
 import com.cineverse.cineversebackend.services.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,7 +22,8 @@ import java.util.UUID;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private static final List<String> ADMIN_EMAILS = List.of("admin@cineverse.com");
+    @Value("${admin.emails:admin@cineverse.com}")
+    private List<String> adminEmails;
 
     @Autowired
     private UserRepository userRepository;
@@ -51,7 +53,7 @@ public class AuthController {
 
         // Determine role (users cannot become admins through general signup)
         String role = "USER";
-        if (ADMIN_EMAILS.contains(email.toLowerCase().trim())) {
+        if (adminEmails.contains(email.toLowerCase().trim())) {
             role = "ADMIN";
         }
 
@@ -95,7 +97,7 @@ public class AuthController {
         }
 
         // Role-based access validation for separate portal logins
-        boolean isAdminEmail = ADMIN_EMAILS.contains(user.getEmail().toLowerCase().trim());
+        boolean isAdminEmail = adminEmails.contains(user.getEmail().toLowerCase().trim());
         if (isAdminEmail) {
             if (!user.getRole().equalsIgnoreCase("ADMIN")) {
                 user.setRole("ADMIN");
