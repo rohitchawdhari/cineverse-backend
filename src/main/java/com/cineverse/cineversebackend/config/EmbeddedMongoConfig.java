@@ -9,9 +9,11 @@ import de.flapdoodle.reverse.TransitionWalker;
 import de.flapdoodle.reverse.transitions.Start;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@ConditionalOnProperty(name = "spring.mongodb.embedded.enabled", havingValue = "true", matchIfMissing = true)
 public class EmbeddedMongoConfig {
 
     private TransitionWalker.ReachedState<RunningMongodProcess> running;

@@ -12,11 +12,15 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
+
+    @Value("${cors.allowed-origins}")
+    private List<String> allowedOrigins;
 
     @Autowired
     private JwtFilter jwtFilter;
@@ -48,9 +52,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(
-                List.of("http://localhost:5173", "http://localhost:5174", "http://localhost:3000")
-        );
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
         );

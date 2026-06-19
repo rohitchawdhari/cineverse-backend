@@ -187,6 +187,17 @@ public class AdminController {
             return ResponseEntity.badRequest().body(Map.of("message", "Coupon code is required"));
         }
         coupon.setCode(coupon.getCode().toUpperCase());
+        Optional<Coupon> existing = couponRepository.findByCode(coupon.getCode());
+        if (existing.isPresent()) {
+            Coupon existingCoupon = existing.get();
+            existingCoupon.setDiscountAmount(coupon.getDiscountAmount());
+            existingCoupon.setDiscountPercentage(coupon.getDiscountPercentage());
+            existingCoupon.setMinPurchaseAmount(coupon.getMinPurchaseAmount());
+            existingCoupon.setExpiryDate(coupon.getExpiryDate());
+            existingCoupon.setActive(coupon.isActive());
+            Coupon saved = couponRepository.save(existingCoupon);
+            return ResponseEntity.ok(saved);
+        }
         Coupon saved = couponRepository.save(coupon);
         return ResponseEntity.ok(saved);
     }

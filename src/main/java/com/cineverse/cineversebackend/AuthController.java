@@ -21,6 +21,8 @@ import java.util.UUID;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private static final List<String> ADMIN_EMAILS = List.of("admin@cineverse.com");
+
     @Autowired
     private UserRepository userRepository;
 
@@ -47,20 +49,21 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "Email is already registered"));
         }
 
+        // Determine role (users cannot become admins through general signup)
+        String role = "USER";
+        if (ADMIN_EMAILS.contains(email.toLowerCase().trim())) {
+            role = "ADMIN";
+        }
+
         // Create user (auto-verified by default, no email verification needed)
         User user = User.builder()
                 .name(name)
                 .email(email)
                 .password(passwordEncoder.encode(password))
-                .role("USER") // Default role
+                .role(role)
                 .isVerified(true)
                 .verificationToken(null)
                 .build();
-
-        // Special case: if this is the first registered user, make them ADMIN
-        if (userRepository.count() == 0) {
-            user.setRole("ADMIN");
-        }
 
         userRepository.save(user);
 
@@ -92,12 +95,28 @@ public class AuthController {
         }
 
         // Role-based access validation for separate portal logins
-        if (requestedRole != null) {
-            if (requestedRole.equalsIgnoreCase("ADMIN") && !user.getRole().equalsIgnoreCase("ADMIN")) {
-                return ResponseEntity.status(403).body(Map.of("message", "Access Denied: Non-admin accounts cannot log in through the Admin Portal"));
+        boolean isAdminEmail = ADMIN_EMAILS.contains(user.getEmail().toLowerCase().trim());
+        if (isAdminEmail) {
+            if (!user.getRole().equalsIgnoreCase("ADMIN")) {
+                user.setRole("ADMIN");
+                userRepository.save(user);
             }
-            if (requestedRole.equalsIgnoreCase("USER") && !user.getRole().equalsIgnoreCase("USER")) {
-                return ResponseEntity.status(403).body(Map.of("message", "Access Denied: Administrators must log in through the Admin Portal"));
+        } else {
+            if (user.getRole().equalsIgnoreCase("ADMIN")) {
+                user.setRole("USER");
+                userRepository.save(user);
+            }
+        }
+
+        if (requestedRole != null) {
+            if (requestedRole.equalsIgnoreCase("ADMIN")) {
+                if (!isAdminEmail) {
+                    return ResponseEntity.status(403).body(Map.of("message", "Unauthorized Admin Access"));
+                }
+            } else if (requestedRole.equalsIgnoreCase("USER")) {
+                if (isAdminEmail) {
+                    return ResponseEntity.status(403).body(Map.of("message", "Access Denied: Administrators must log in through the Admin Portal"));
+                }
             }
         }
 
